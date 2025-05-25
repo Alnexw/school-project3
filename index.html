@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>榮太科技-玻璃隔熱保溫節能塗層計算</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans TC', Arial, sans-serif;
+      background: #f5f8fa;
+      margin: 0;
+      color: #063a69;
+    }
+    .main-wrap {
+      max-width: 600px;
+      margin: 40px auto 30px auto;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 6px 32px rgba(6,58,105,0.08);
+      padding: 32px 5vw 32px 5vw;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 10px;
+      color: #063a69;
+      letter-spacing: 2px;
+    }
+    .desc {
+      text-align: center;
+      color: #5abb92;
+      font-size: 1.1em;
+      margin-bottom: 24px;
+    }
+    .calc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 18px;
+    }
+    .calc-table th, .calc-table td {
+      border: 1px solid #e8fff5;
+      padding: 8px 6px;
+      text-align: center;
+      font-size: 1em;
+    }
+    .calc-table th {
+      background: #e8fff5;
+      color: #063a69;
+      font-weight: bold;
+    }
+    .calc-table input[type="number"] {
+      width: 70px;
+      padding: 4px 2px;
+      border-radius: 5px;
+      border: 1.2px solid #bdbdbd;
+      font-size: 1em;
+      background: #fafdff;
+      text-align: center;
+    }
+    .add-btn, .remove-btn {
+      background: #5abb92;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 16px;
+      font-size: 1em;
+      cursor: pointer;
+      margin: 0 2px;
+      transition: background 0.15s;
+    }
+    .add-btn:hover { background: #063a69; }
+    .remove-btn {
+      background: #e57373;
+      padding: 6px 12px;
+    }
+    .remove-btn:hover { background: #d32f2f; }
+    .result-block {
+      background: #e8fff5;
+      border-radius: 12px;
+      padding: 18px 14px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 8px #5abb9212;
+      font-size: 1.08em;
+      color: #063a69;
+    }
+    .result-block h3 {
+      margin-top: 0;
+      color: #5abb92;
+      font-size: 1.08em;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    .tape-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    .tape-table th, .tape-table td {
+      border: 1px solid #d7e7e2;
+      padding: 6px 2px;
+      text-align: center;
+      font-size: 1em;
+    }
+    .tape-table th {
+      background: #fafdff;
+      color: #063a69;
+      font-weight: bold;
+    }
+    @media (max-width: 600px) {
+      .main-wrap { padding: 18px 2vw; }
+      h1 { font-size: 1.3em; }
+      .desc { font-size: 1em; }
+      .calc-table th, .calc-table td, .tape-table th, .tape-table td { font-size: 0.95em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-wrap">
+    <h1>榮太科技-玻璃隔熱保溫節能塗層計算</h1>
+    <div class="desc">可新增多扇窗戶，立即計算材料用量與遮蔽膠帶需求<br>滾輪每支約可塗6平方公尺</div>
+    <form id="calcForm" oninput="calculateAll()">
+      <table class="calc-table" id="windowTable">
+        <thead>
+          <tr>
+            <th>窗戶編號</th>
+            <th>長度 (m)</th>
+            <th>寬度 (m)</th>
+            <th>移除</th>
+          </tr>
+        </thead>
+        <tbody id="windowList"></tbody>
+      </table>
+      <button type="button" class="add-btn" onclick="addWindow()">＋ 新增窗戶</button>
+    </form>
+    <div class="result-block" id="resultBlock"></div>
+  </div>
+  <script>
+    let windowCount = 0;
+    function addWindow(length=2, width=1.5) {
+      windowCount++;
+      const tr = document.createElement('tr');
+      tr.className = 'window-row';
+      tr.innerHTML = `
+        <td>窗戶 #${windowCount}</td>
+        <td><input type="number" min="0" step="0.01" value="${length}" onchange="calculateAll()" required></td>
+        <td><input type="number" min="0" step="0.01" value="${width}" onchange="calculateAll()" required></td>
+        <td><button type="button" class="remove-btn" onclick="removeWindow(this)">移除</button></td>
+      `;
+      document.getElementById('windowList').appendChild(tr);
+      calculateAll();
+    }
+    function removeWindow(btn) {
+      btn.closest('tr').remove();
+      calculateAll();
+    }
+    function calculateAll() {
+      const rows = document.querySelectorAll('.window-row');
+      let totalArea = 0, totalSolvent = 0, totalA = 0, totalB = 0;
+      let totalPerimeter = 0;
+      let html = '';
+
+      // 遮蔽膠帶各規格總長度
+      let tapeLengths = { "6mm": 0, "15mm": 0, "40mm": 0 };
+
+      rows.forEach((row, idx) => {
+        const inputs = row.querySelectorAll('input');
+        const len = parseFloat(inputs[0].value) || 0;
+        const wid = parseFloat(inputs[1].value) || 0;
+        const area = len * wid;
+        const perimeter = 2 * (len + wid);
+
+        const solvent = area * 25;
+        const A = solvent * 1 / 2.4;
+        const B = solvent * 1.4 / 2.4;
+
+        totalArea += area;
+        totalSolvent += solvent;
+        totalA += A;
+        totalB += B;
+        totalPerimeter += perimeter;
+
+        // 每種膠帶都要一圈
+        tapeLengths["6mm"] += perimeter;
+        tapeLengths["15mm"] += perimeter;
+        tapeLengths["40mm"] += perimeter;
+      });
+
+      // 滾輪數量（每支6平方公尺）
+      const totalRoller = Math.ceil(totalArea / 6);
+
+      // 滾輪額外用量
+      const rollerExtra = totalRoller * 30;
+      const totalSolventWithRoller = totalSolvent + rollerExtra;
+      const totalAWithRoller = totalA + rollerExtra * 1 / 2.4;
+      const totalBWithRoller = totalB + rollerExtra * 1.4 / 2.4;
+
+      // 遮蔽膠帶捲數
+      const tapeRolls = {};
+      Object.keys(tapeLengths).forEach(type => {
+        tapeRolls[type] = Math.ceil(tapeLengths[type] / 18);
+      });
+
+      html += `<h3>塗層材料用量</h3>`;
+      html += `總面積：<b>${totalArea.toFixed(2)}</b> 平方公尺<br>`;
+      html += `總溶劑用量：<b>${totalSolventWithRoller.toFixed(1)}</b> ml（含滾輪${totalRoller}支 × 30ml）<br>`;
+      html += `A劑：<b>${totalAWithRoller.toFixed(1)}</b> ml　B劑：<b>${totalBWithRoller.toFixed(1)}</b> ml<br>`;
+      html += `建議滾輪數量：<b>${totalRoller}</b> 支（每支約6㎡）<br>`;
+
+      html += `<h3 style="margin-top:18px;">遮蔽膠帶需求</h3>`;
+      html += `<table class="tape-table">
+        <tr>
+          <th>規格</th>
+          <th>總長度 (m)</th>
+          <th>所需捲數 (18m/捲)</th>
+        </tr>
+        <tr>
+          <td>6mm</td>
+          <td>${tapeLengths["6mm"].toFixed(2)}</td>
+          <td>${tapeRolls["6mm"]}</td>
+        </tr>
+        <tr>
+          <td>15mm</td>
+          <td>${tapeLengths["15mm"].toFixed(2)}</td>
+          <td>${tapeRolls["15mm"]}</td>
+        </tr>
+        <tr>
+          <td>40mm</td>
+          <td>${tapeLengths["40mm"].toFixed(2)}</td>
+          <td>${tapeRolls["40mm"]}</td>
+        </tr>
+      </table>`;
+
+      document.getElementById('resultBlock').innerHTML = html;
+    }
+    // 預設兩扇窗
+    window.onload = function() {
+      addWindow(2, 1.5);
+      addWindow(1.2, 1.2);
+    };
+  </script>
+</body>
+</html>
